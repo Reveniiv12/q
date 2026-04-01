@@ -64,6 +64,7 @@ h1 {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   margin-bottom: 2rem;
   transition: transform 0.3s ease;
+  transform: translateZ(0); /* Hardware acceleration */
 }
 
 .input-group {
@@ -87,7 +88,7 @@ textarea {
   color: var(--text-main);
   font-size: 1rem;
   resize: vertical;
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
   outline: none;
 }
 
@@ -107,7 +108,7 @@ textarea:focus {
   font-size: 1.1rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
 }
 
@@ -145,7 +146,11 @@ textarea:focus {
 }
 
 .results-table-container {
-  overflow-x: auto;
+  max-height: 600px;
+  overflow-y: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 table {
@@ -155,6 +160,10 @@ table {
 }
 
 th {
+  position: sticky;
+  top: 0;
+  background: #1e293b; /* Dark solid color for sticky header */
+  z-index: 10;
   text-align: right;
   padding: 1rem;
   color: var(--text-muted);
@@ -181,6 +190,7 @@ tr:hover td {
 .badge-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
 .badge-warning { background: rgba(234, 179, 8, 0.1); color: #facc15; }
 .badge-danger { background: rgba(239, 68, 68, 0.1); color: #f87171; }
+.badge-info { background: rgba(56, 189, 248, 0.1); color: #38bdf8; }
 
 @keyframes fadeInDown {
   from { opacity: 0; transform: translateY(-20px); }
