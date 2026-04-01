@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ar">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام حساب الساعات | SLAYZ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body,
+        * {
+            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>نظام حساب الساعات</h1>
+            <p class="subtitle">قم بلصق سجل العمليات بالكامل لتحليل البيانات وحساب الفترات الزمنية فوراً</p>
+        </header>
+
+        <main>
+            <div class="glass-card">
+                <div class="input-group">
+                    <label for="logInput">سجل العمليات (الصق النص هنا)</label>
+                    <textarea id="logInput" placeholder="الصق السجل هنا ..."></textarea>
+                </div>
+                <button id="processBtn" class="btn-primary">تحليل البيانات وحساب الساعات</button>
+            </div>
+
+            <div id="statsSection" class="stats-grid" style="display: none;">
+                <div class="stat-item">
+                    <span id="totalHours" class="stat-value">0</span>
+                    <span class="stat-label">إجمالي الساعات</span>
+                </div>
+                <div class="stat-item">
+                    <span id="entriesCount" class="stat-value">0</span>
+                    <span class="stat-label">عدد التحديثات</span>
+                </div>
+                <div class="stat-item">
+                    <span id="completedCount" class="stat-value">0</span>
+                    <span class="stat-label">عدد مرات الاستلام</span>
+                </div>
+                <div class="stat-item">
+                    <span id="missedDeliveryCount" class="stat-value">0</span>
+                    <span class="stat-label">لم يسلم العمليات</span>
+                </div>
+                <div class="stat-item">
+                    <span id="overLimitCount" class="stat-value">0</span>
+                    <span class="stat-label">تجاوز الحد (3س+)</span>
+                </div>
+                <div class="stat-item">
+                    <span id="totalOverLimitTime" class="stat-value">0</span>
+                    <span class="stat-label">إجمالي وقت التجاوز</span>
+                </div>
+                <div class="stat-item">
+                    <span id="subHourCount" class="stat-value">0</span>
+                    <span class="stat-label">أقل من ساعة (مخالف)</span>
+                </div>
+                <div class="stat-item">
+                    <span id="subHourTotalTime" class="stat-value">0</span>
+                    <span class="stat-label">إجمالي وقت المخالفات</span>
+                </div>
+            </div>
+
+            <div id="resultsSection" class="glass-card" style="display: none;">
+                <h3>نتائج التحليل</h3>
+                <div class="results-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>اسم العمليات</th>
+                                <th>الاستلام</th>
+                                <th>التسليم</th>
+                                <th>المدة</th>
+                                <th>تجاوز الحد</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody">
+                            <!-- Results will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
