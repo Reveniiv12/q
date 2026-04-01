@@ -4,101 +4,106 @@ function processData() {
     const input = document.getElementById('logInput').value;
     if (!input) return alert('يرجى لصق النص أولاً');
 
-    const blocks = input.split(/(?=\S*Role icon,.*?\s—\s\d{1,2}\/\d{1,2}\/\d{4})/).filter(b => b.trim().length > 20);
+    // Split blocks based on Discord message separators (Role icon)
+    const blocks = input.split(/(?=\S*Role icon,.*?\s—\s)/).filter(b => b.trim().length > 20);
     const results = [];
+    let lastDate = 'غير معروف';
 
     blocks.forEach(block => {
-        const dateMatch = block.match(/—\s*((\d{1,2})\/(\d{1,2})\/(\d{4})\s*(\d{1,2}):(\d{2})\s*(AM|PM))/);
-        const headerAMPM = dateMatch ? dateMatch[7] : null;
+        if (!block.trim()) return;
 
-        const nameMatch = block.match(/(اسم\s+)?العمليات[\s:]+(.*?)(\n|$)/i);
-        const operationsName = nameMatch ? nameMatch[2].trim() : 'غير معروف';
-
-        // More robust time regex: handles various separators like : or :: or spaces
-        const timeRegex = /(\d{1,2}:\d{2})\s*(AM|PM|ص|م)?/i;
-
-        // Using fuzzy matching for "الاستلام" and "التسليم" to handle typos like extra letters
-        const receiptMatch = block.match(/وقت\s*الاستلا[ا]*م[\s:]+(\d{1,2}:\d{2})\s*(AM|PM|ص|م)?/i);
-        const deliveryMatch = block.match(/وقت\s*التسلي[ي]*م[\s:]+(\d{1,2}:\d{2})\s*(AM|PM|ص|م)?/i);
-
-        let duration = 0;
-        let durationText = '-';
-        let overLimitText = '-';
-        let status = 'غير مكتمل';
-
-        if (receiptMatch && deliveryMatch) {
-            duration = calculateSmartDuration(receiptMatch, deliveryMatch, headerAMPM);
-            durationText = formatDuration(duration);
-            
-            // Calculate over-limit (if duration > 180 minutes)
-            if (duration > 180) {
-                overLimitText = formatDuration(duration - 180);
-            }
-            
-            status = 'مكتمل';
-        } else if (receiptMatch) {
-            status = 'قيد العمل';
+        // Date Extraction & Inheritance
+        const dateMatch = block.match(/—\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
+        if (dateMatch) {
+            lastDate = dateMatch[1];
         }
 
-        results.push({
-            timestamp: dateMatch ? new Date(`${dateMatch[4]}-${dateMatch[2]}-${dateMatch[3]} ${dateMatch[5]}:${dateMatch[6]} ${dateMatch[7]}`).getTime() : 0,
-            date: dateMatch ? `${dateMatch[2]}/${dateMatch[3]}/${dateMatch[4]} ${dateMatch[5]}:${dateMatch[6]} ${dateMatch[7]}` : 'غير معروف',
-            name: operationsName,
-            receipt: receiptMatch ? `${receiptMatch[1]} ${receiptMatch[2] || ''}` : '-',
-            delivery: deliveryMatch ? `${deliveryMatch[1]} ${deliveryMatch[2] || ''}` : '-',
-            duration: duration,
-            durationText: durationText,
-            overLimitText: overLimitText,
-            status: status
-        });
+        // Field Extraction - Flexible for single digit minutes (1:6) and optional colons
+        const nameMatch = block.match(/(?:العمليات|اسم العمليات)\s*[:：]?\s*(.+?)(?:\n|$)/i);
+        const receiptMatch = block.match(/(?:وقت الاستلام|الاستلام)\s*[:：]?\s*(\d{1,2}:\d{1,2}(?:\s*[AP]M|ص|م)?)/i);
+        const deliveryMatch = block.match(/(?:وقت التسليم|التسليم)\s*[:：]?\s*(\d{1,2}:\d{1,2}(?:\s*[AP]M|ص|م)?)/i);
+
+        if (nameMatch || receiptMatch) {
+            const name = nameMatch ? nameMatch[1].trim() : "غير معروف";
+            // Extract just the time part for calculation
+            const receiptStr = receiptMatch ? receiptMatch[1].trim() : null;
+            const deliveryStr = deliveryMatch ? deliveryMatch[1].trim() : null;
+
+            let duration = 0;
+            let status = 'قيد العمل';
+            let timestamp = 0;
+
+            // Generate sortable timestamp
+            if (lastDate !== 'غير معروف' && receiptStr) {
+                const cleanTime = receiptStr.replace(/[صم]/g, (match) => match === 'ص' ? 'AM' : 'PM');
+                // Ensure minutes have leading zero for the Date constructor if needed
+                const standardizedTime = cleanTime.replace(/:(\d)(?!\d)/, ':0$1');
+                timestamp = new Date(`${lastDate} ${standardizedTime}`).getTime();
+            }
+
+            if (receiptStr && deliveryStr) {
+                duration = calculateSmartDuration(receiptStr, deliveryStr);
+                status = 'مكتمل';
+            }
+
+            results.push({
+                date: lastDate,
+                name: name,
+                receipt: receiptStr || '-',
+                delivery: deliveryStr || '-',
+                duration: duration,
+                durationText: status === 'مكتمل' ? formatDuration(duration) : '-',
+                overLimitText: (status === 'مكتمل' && duration > 180) ? formatDuration(duration - 180) : '-',
+                status: status,
+                timestamp: timestamp || Date.now()
+            });
+        }
     });
 
     // Sort results by date (Oldest to Newest)
     results.sort((a, b) => a.timestamp - b.timestamp);
 
-    // [New Logic] Identify the EXACT point where a shift was abandoned
+    // Identify abandoned shifts (Transition points)
     for (let i = 0; i < results.length - 1; i++) {
-        const current = results[i];
-        const next = results[i + 1];
-
-        if (current.status === 'قيد العمل') {
-            // If the next logical update is by someone else, or the next record is a fresh receipt
-            // we assume the current one was abandoned and never delivered.
-            if (next.name !== current.name) {
-                current.status = 'لم يسلم العمليات';
-            }
+        if (results[i].status === 'قيد العمل' && results[i + 1].name !== results[i].name) {
+            results[i].status = 'لم يسلم العمليات';
         }
     }
 
     renderResults(results);
 }
 
-function calculateSmartDuration(startMatch, endMatch, headerAMPM) {
-    const parseTimeToMinutes = (timeStr, ampm) => {
-        let [h, m] = timeStr.split(':').map(Number);
+function calculateSmartDuration(startTimeStr, endTimeStr) {
+    const parseTimeToMinutes = (timeStr) => {
+        if (!timeStr) return 0;
         
+        // Match hours, minutes and optional AM/PM/ص/م
+        const match = timeStr.match(/(\d{1,2}):(\d{1,2})\s*([AP]M|ص|م)?/i);
+        if (!match) return 0;
+
+        let h = parseInt(match[1]);
+        let m = parseInt(match[2]);
+        let ampm = match[3] ? match[3].toUpperCase() : null;
+
         if (ampm) {
-            ampm = ampm.toUpperCase();
             if ((ampm === 'PM' || ampm === 'م') && h < 12) h += 12;
             if ((ampm === 'AM' || ampm === 'ص') && h === 12) h = 0;
-        } else {
-            // Default 12h-system handling if no AM/PM
-            if (h === 12) h = 0; 
         }
         return h * 60 + m;
     };
 
-    const startMinutes = parseTimeToMinutes(startMatch[1], startMatch[2]);
-    const endMinutes = parseTimeToMinutes(endMatch[1], endMatch[2]);
+    const startMinutes = parseTimeToMinutes(startTimeStr);
+    const endMinutes = parseTimeToMinutes(endTimeStr);
 
     let diff = endMinutes - startMinutes;
 
     // Handle cross-day shifts
     if (diff < 0) diff += 1440;
 
-    // Smart Correction: If duration is > 12h and NO AM/PM was explicitly provided in the log line,
-    // it's almost certainly a 12-hour wrap error (e.g. 11 to 1 thinking it's 11am to 1am).
-    if (diff > 720 && !startMatch[2] && !endMatch[2]) {
+    // Smart Correction: If duration is > 12h and NO AM/PM was explicitly provided,
+    // it's likely a 12-hour wrap error.
+    const hasAMPM = /[AP]M|ص|م/i.test(startTimeStr) || /[AP]M|ص|م/i.test(endTimeStr);
+    if (diff > 720 && !hasAMPM) {
         diff -= 720;
     }
 
